@@ -2,17 +2,33 @@
 @allowed (['d','p'])
 param Environment string = 'd'
 
+// -----------------------------------------------------------------
+// location for deploying resources & resource naming conventions
+@description('Location is used to specify the deployment location for each Resource')
+param Location string = 'eastus'
+
+@description('Location Abbreviation is used to name Resources')
+param LocationAbbr string = 'eus'
+
+// Azure IP Address space for the hub virtual networks
 @description('IP address space for AVD virtual network')
 param hubVnetAddrPrefix string = '10.0.0.0/21'
 
 @description('IP address space for AVD virtual network')
 param avdVnetAddrPrefix string = '10.3.0.0/21'
 
-@description('Location is used to specify the deployment location for each Resource')
-param Location string = 'eastus'
+// -----------------------------------------------------------------
+//On-premises IP Address rangers & VPN configuration settings
+@description('IP address space for the on-premises network(s). Can be changed to an array for multiple on-premises networks.')
+param onPremVnetAddrPrefix string = '192.168.0.0/16'
 
-@description('Location Abbreviation is used to name Resources')
-param LocationAbbr string = 'eus'
+@description('Public IP address for the on-premesis VPN device')
+param onPremVpnPublicIp string = '4.3.2.1'
+
+@description('IPSec VPN pre-shared key')
+@secure()
+param vpnPresharedKey string
+
 
 var HubVnetSubnetPrefix = take(hubVnetAddrPrefix, length(hubVnetAddrPrefix) - 4)
 var avdVnetSubnetPrefix = take(avdVnetAddrPrefix, length(hubVnetAddrPrefix) - 4)
@@ -567,4 +583,76 @@ resource bastion_host 'Microsoft.Network/bastionHosts@2020-05-01' = {
 
     HubVnet
   ]
+}
+
+resource vpnGw_pip 'Microsoft.Network/publicIPAddresses@2022-07-01' = {
+  name: 'pip-vpn-${Environment}-${LocationAbbr}'
+  location: Location
+  sku: {
+    name: 'Standard'
+  }
+  properties: {
+    publicIPAddressVersion: 'IPv4'
+    publicIPAllocationMethod: 'Static'
+    idleTimeoutInMinutes: 4
+  }
+}
+
+// Virtual Network Gateway - the Azure resource that terminates the VPN connection
+resource vpnGw 'Microsoft.Network/virtualNetworkGateways@2020-11-01' = {
+  name: '${Environment}-${LocationAbbr}-vpnGw'
+  location: Location
+  properties: {
+    ipConfigurations: [
+      {
+        name: 'vpnGwIpConfig'
+        properties: {
+          privateIPAllocationMethod: 'Dynamic'
+          subnet: {
+            id: resourceId('Microsoft.Network/virtualNetworks/subnets', 'HubVnet-${Environment}-${LocationAbbr}', 'GatewaySubnet')
+          }
+          publicIPAddress: {
+            id: vpnGw_pip.id
+          }
+        }
+      }
+    ]
+    sku: {
+      name: 'VpnGw2'
+      tier: 'VpnGw2'
+    }
+    gatewayType: 'Vpn'
+    vpnType: 'RouteBased'
+    enableBgp: false
+  }
+}
+// Local Network Gateway - repreresents the on-premises VPN location address space
+resource vpn_LNG 'Microsoft.Network/localNetworkGateways@2019-11-01' = {
+  name: 'OnPremDc-${Environment}-${LocationAbbr}-LNG'
+  location: Location
+  properties: {
+    localNetworkAddressSpace: {
+      addressPrefixes: [
+        onPremVnetAddrPrefix
+      ]
+    }
+    gatewayIpAddress: onPremVpnPublicIp
+  }
+}
+
+// Virtual Network Gateway Connection - the connection between the Azure VPN Gateway and the on-premises VPN Gateway
+resource vpnGw_conn 'Microsoft.Network/connections@2022-07-01' = {
+  name: '${Environment}-${LocationAbbr}-vpnGw-conn'
+  location: Location
+  properties: {
+   virtualNetworkGateway1: {
+      id: vpnGw.id
+    }
+    localNetworkGateway2: {
+      id: vpn_LNG.id
+    }
+    connectionType: 'IPsec'
+    enableBgp: false
+    sharedKey: vpnPresharedKey
+  }
 }
