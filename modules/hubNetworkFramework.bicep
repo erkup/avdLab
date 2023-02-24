@@ -1,37 +1,32 @@
 @description('Determines the environment of the resource (e.g., \'d\' for Development)')
-@allowed (['d','p'])
-param Environment string = 'd'
+@allowed([ 'd', 'p' ])
+param Environment string
 
 // -----------------------------------------------------------------
 // location for deploying resources & resource naming conventions
 @description('Location is used to specify the deployment location for each Resource')
-param Location string = 'eastus'
+param Location string
 
 @description('Location Abbreviation is used to name Resources')
-param LocationAbbr string = 'eus'
+param LocationAbbr string
 
 // Azure IP Address space for the hub virtual networks
 @description('IP address space for AVD virtual network')
-param hubVnetAddrPrefix string = '10.0.0.0/21'
-
-@description('IP address space for AVD virtual network')
-param avdVnetAddrPrefix string = '10.3.0.0/21'
+param hubVnetAddrPrefix string
 
 // -----------------------------------------------------------------
 //On-premises IP Address rangers & VPN configuration settings
 @description('IP address space for the on-premises network(s). Can be changed to an array for multiple on-premises networks.')
-param onPremVnetAddrPrefix string = '192.168.0.0/16'
+param onPremVnetAddrPrefix string
 
 @description('Public IP address for the on-premesis VPN device')
-param onPremVpnPublicIp string = '4.3.2.1'
+param onPremVpnPublicIp string
 
 @description('IPSec VPN pre-shared key')
 @secure()
 param vpnPresharedKey string
 
-
 var HubVnetSubnetPrefix = take(hubVnetAddrPrefix, length(hubVnetAddrPrefix) - 4)
-var avdVnetSubnetPrefix = take(avdVnetAddrPrefix, length(hubVnetAddrPrefix) - 4)
 var adDcLastOctet = [
   192 + 4
   192 + 5
@@ -429,7 +424,7 @@ resource NsgBastion 'Microsoft.Network/networkSecurityGroups@2020-05-01' = {
 }
 
 resource HubVnet 'Microsoft.Network/virtualNetworks@2022-07-01' = {
-  name: 'HubVnet-${Environment}-${LocationAbbr}'
+  name: 'Hub-${Environment}-${LocationAbbr}-vnet'
   location: Location
   tags: {
   }
@@ -491,62 +486,6 @@ resource HubVnet 'Microsoft.Network/virtualNetworks@2022-07-01' = {
   }
 }
 
-resource AVD_SessionHost_network 'Microsoft.Network/virtualNetworks@2022-07-01' = {
-  name: 'AVD-${Environment}-${LocationAbbr}-vnet'
-  location: Location
-  tags: {
-  }
-  properties: {
-    addressSpace: {
-      addressPrefixes: [
-        avdVnetAddrPrefix
-      ]
-    }
-    dhcpOptions: {
-      dnsServers: [
-        adDsDnsVmIpAddresses[0]
-        adDsDnsVmIpAddresses[1]
-        adDsDnsVmIpAddresses[2]
-      ]
-    }
-    subnets: [
-      {
-        name: 'avdSessionHost-Subnet'
-        properties: {
-          addressPrefix: '${avdVnetSubnetPrefix}0/26'
-          privateEndpointNetworkPolicies: 'Enabled'
-          privateLinkServiceNetworkPolicies: 'Enabled'
-        }
-      }
-    ]
-  }
-}
-
-resource hubPeering 'Microsoft.Network/virtualNetworks/virtualNetworkPeerings@2020-07-01' = {
-  name: '${HubVnet.name}/${HubVnet.name}-peering'
-  properties: {
-    allowVirtualNetworkAccess: true
-    allowForwardedTraffic: true
-    allowGatewayTransit: true
-    useRemoteGateways: false
-    remoteVirtualNetwork: {
-      id: AVD_SessionHost_network.id
-    }
-  }
-}
-
-resource AVD_SessionHost_networkPeering 'Microsoft.Network/virtualNetworks/virtualNetworkPeerings@2020-07-01' = {
-  name: '${AVD_SessionHost_network.name}/${AVD_SessionHost_network.name}-peering'
-  properties: {
-    allowVirtualNetworkAccess: true
-    allowForwardedTraffic: true
-    allowGatewayTransit: true
-    useRemoteGateways: false
-    remoteVirtualNetwork: {
-      id: HubVnet.id
-    }
-  }
-}
 resource bastion_pip 'Microsoft.Network/publicIPAddresses@2020-05-01' = {
   name: 'pip-bastion-${Environment}-${LocationAbbr}'
   location: Location
@@ -573,7 +512,7 @@ resource bastion_host 'Microsoft.Network/bastionHosts@2020-05-01' = {
             id: bastion_pip.id
           }
           subnet: {
-            id: resourceId('Microsoft.Network/virtualNetworks/subnets', 'HubVnet-${Environment}-${LocationAbbr}', 'AzureBastionSubnet')
+            id: resourceId('Microsoft.Network/virtualNetworks/subnets', 'Hub-${Environment}-${LocationAbbr}-vnet', 'AzureBastionSubnet')
           }
         }
       }
@@ -609,7 +548,7 @@ resource vpnGw 'Microsoft.Network/virtualNetworkGateways@2020-11-01' = {
         properties: {
           privateIPAllocationMethod: 'Dynamic'
           subnet: {
-            id: resourceId('Microsoft.Network/virtualNetworks/subnets', 'HubVnet-${Environment}-${LocationAbbr}', 'GatewaySubnet')
+            id: resourceId('Microsoft.Network/virtualNetworks/subnets', 'Hub-${Environment}-${LocationAbbr}-vnet', 'GatewaySubnet')
           }
           publicIPAddress: {
             id: vpnGw_pip.id
@@ -645,9 +584,11 @@ resource vpnGw_conn 'Microsoft.Network/connections@2022-07-01' = {
   name: '${Environment}-${LocationAbbr}-vpnGw-conn'
   location: Location
   properties: {
-   virtualNetworkGateway1: {
+    #disable-next-line BCP035
+    virtualNetworkGateway1: {
       id: vpnGw.id
     }
+    #disable-next-line BCP035
     localNetworkGateway2: {
       id: vpn_LNG.id
     }
@@ -655,4 +596,10 @@ resource vpnGw_conn 'Microsoft.Network/connections@2022-07-01' = {
     enableBgp: false
     sharedKey: vpnPresharedKey
   }
+}
+
+output hubVnet object = {
+  name: HubVnet.name
+  id: HubVnet.id
+  dnsServers: HubVnet.properties.dhcpOptions.dnsServers
 }
