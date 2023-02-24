@@ -36,10 +36,10 @@ param avdVnetAddrPrefix string = '10.3.0.0/21'
 // -----------------------------------------------------------------
 //On-premises IP Address rangers & VPN configuration settings
 @description('IP address space for the on-premises network(s). Can be changed to an array for multiple on-premises networks.')
-param onPremVnetAddrPrefix string = '192.168.0.0/16'
+param onPremVnetAddrPrefix string
 
 @description('Public IP address for the on-premesis VPN device')
-param onPremVpnPublicIp string = '4.3.2.1'
+param onPremVpnPublicIp string
 
 @description('IPSec VPN pre-shared key')
 @secure()
@@ -96,11 +96,11 @@ module avdNetworkModule './modules/avdNetworkFramework.bicep' = {
   }
 }
 
-module createPeering 'modules/createPeering.bicep' = {
+/* module createPeering 'modules/createPeering.bicep' = {
   name: 'createPeering'
   scope: resourceGroup(platformSubscriptionId,hubVnetResourceGroupName)
   params: {
     HubVnet: hubNetworkModule.outputs.hubVnet
     AVD_SessionHost_network: avdNetworkModule.outputs.AVD_SessionHost_network
     }
-}
+} */
