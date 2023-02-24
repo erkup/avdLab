@@ -541,6 +541,9 @@ resource vpnGw_pip 'Microsoft.Network/publicIPAddresses@2022-07-01' = {
 resource vpnGw 'Microsoft.Network/virtualNetworkGateways@2020-11-01' = {
   name: '${Environment}-${LocationAbbr}-vpnGw'
   location: Location
+  dependsOn: [
+    HubVnet
+  ]
   properties: {
     ipConfigurations: [
       {
@@ -548,7 +551,8 @@ resource vpnGw 'Microsoft.Network/virtualNetworkGateways@2020-11-01' = {
         properties: {
           privateIPAllocationMethod: 'Dynamic'
           subnet: {
-            id: resourceId('Microsoft.Network/virtualNetworks/subnets', 'Hub-${Environment}-${LocationAbbr}-vnet', 'GatewaySubnet')
+            id:resourceId(subscription().subscriptionId, resourceGroup().name, 'Microsoft.Network/virtualNetworks/subnets', 'Hub-${Environment}-${LocationAbbr}-vnet', 'GatewaySubnet')
+            // resourceId('Microsoft.Network/virtualNetworks/subnets', 'Hub-${Environment}-${LocationAbbr}-vnet', 'GatewaySubnet')
           }
           publicIPAddress: {
             id: vpnGw_pip.id
