@@ -1,7 +1,7 @@
 targetScope = 'subscription'
 
 param platformSubscriptionId string = subscription().subscriptionId
-param avdSubscriptionId string = 'ede994cb-7d4e-4b8b-a849-0a8c716df117'
+param avdSubscriptionId string 
 // -----------------------------------------------------------------
 //Resource Group Naming conventions
 @description('Name of the resource group for the hub virtual network')
