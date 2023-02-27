@@ -96,11 +96,24 @@ module avdNetworkModule './modules/avdNetworkFramework.bicep' = {
   }
 }
 
-/* module createPeering 'modules/createPeering.bicep' = {
-  name: 'createPeering'
+module createHubPeering './modules/createPeering.bicep' = {
+  name: 'create1Peering'
   scope: resourceGroup(platformSubscriptionId,hubVnetResourceGroupName)
   params: {
-    HubVnet: hubNetworkModule.outputs.hubVnet
-    AVD_SessionHost_network: avdNetworkModule.outputs.AVD_SessionHost_network
+    sourceVnet: hubNetworkModule.outputs.hubVnet
+    destinationVnet: avdNetworkModule.outputs.AVD_SessionHost_network
+    remoteVnetRg: avdVnetResourceGroupName
+    remoteVnetSubscription: avdSubscriptionId
     }
-} */
+}
+
+module createAvdPeering './modules/createPeering.bicep' = {
+  name: 'create2Peering'
+  scope: resourceGroup(avdSubscriptionId,avdVnetResourceGroupName)
+  params: {
+    sourceVnet: avdNetworkModule.outputs.AVD_SessionHost_network
+    destinationVnet: hubNetworkModule.outputs.hubVnet
+    remoteVnetRg: hubVnetResourceGroupName
+    remoteVnetSubscription: platformSubscriptionId
+    }
+}
