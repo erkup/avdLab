@@ -4,6 +4,9 @@ param platformSubscriptionId string = subscription().subscriptionId
 param avdSubscriptionId string 
 // -----------------------------------------------------------------
 //Resource Group Naming conventions
+@description('Name of the resource group for the AD DS VMs')
+param dcResourceGroupName string = 'ADDS-rg'
+
 @description('Name of the resource group for the hub virtual network')
 param hubVnetResourceGroupName string = 'hub-network-rg'
 
@@ -45,12 +48,18 @@ param onPremVpnPublicIp string
 @secure()
 param vpnPresharedKey string
 
+@description('Set username/password for AD DS VMs')
+param VmUsername string
+@secure()
+param VmPassword string
+
 module deployPlatformSubRg './modules/createPlatformSubResources.bicep' = {
   name: 'deployPlatformRg'
   scope: subscription(platformSubscriptionId)
   params: {
     hubVnetResourceGroupName: hubVnetResourceGroupName
     Location: Location
+    dcResourceGroupName: dcResourceGroupName
   }
 }
 
@@ -62,6 +71,24 @@ module deployAvdSubRg './modules/createAvdSubResources.bicep' = {
     avdResourceGroupName: avdResourceGroupName
     Location: Location
   }
+}
+
+module deployAdds './modules/identityFramework.bicep' = {
+  name: 'AddsDeployment'
+  scope: resourceGroup(platformSubscriptionId,dcResourceGroupName)
+  params: {
+    hubVnetResourceGroupName: hubVnetResourceGroupName
+    platformSubscriptionId: platformSubscriptionId
+    Environment: Environment
+    Location: Location
+    LocationAbbr: LocationAbbr
+    VmUsername: VmUsername
+    VmPassword: VmPassword
+  }
+  dependsOn: [
+    deployPlatformSubRg
+    hubNetworkModule
+  ]
 }
 
 module hubNetworkModule './modules/hubNetworkFramework.bicep' = {
