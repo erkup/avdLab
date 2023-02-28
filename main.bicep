@@ -1,37 +1,40 @@
 targetScope = 'subscription'
 
-param platformSubscriptionId string = subscription().subscriptionId
+param platformSubscriptionId string
 param avdSubscriptionId string 
 // -----------------------------------------------------------------
 //Resource Group Naming conventions
+@description('Name of the resource group for the AD DS VMs')
+param dcResourceGroupName string
+
 @description('Name of the resource group for the hub virtual network')
-param hubVnetResourceGroupName string = 'hub-network-rg'
+param hubVnetResourceGroupName string
 
 @description('Name of the resource group for the AVD virtual network')
-param avdVnetResourceGroupName string = 'avd-network-rg'
+param avdVnetResourceGroupName string
 
 @description('Name of the resource group for AVD resources')
-param avdResourceGroupName string = 'avd-rg'
+param avdResourceGroupName string
 
 // -----------------------------------------------------------------
 @description('Determines the environment of the resource (e.g., \'d\' for Development)')
 @allowed (['d','p'])
-param Environment string = 'p'
+param Environment string
 
 // -----------------------------------------------------------------
 // location for deploying resources & resource naming conventions
 @description('Location is used to specify the deployment location for each Resource')
-param Location string = 'eastus'
+param Location string
 
 @description('Location Abbreviation is used to name Resources')
-param LocationAbbr string = 'eus'
+param LocationAbbr string
 
 // Azure IP Address space for the hub virtual networks
 @description('IP address space for AVD virtual network')
-param hubVnetAddrPrefix string = '10.0.0.0/21'
+param hubVnetAddrPrefix string
 
 @description('IP address space for AVD virtual network')
-param avdVnetAddrPrefix string = '10.3.0.0/21'
+param avdVnetAddrPrefix string
 
 // -----------------------------------------------------------------
 //On-premises IP Address rangers & VPN configuration settings
@@ -45,12 +48,18 @@ param onPremVpnPublicIp string
 @secure()
 param vpnPresharedKey string
 
+@description('Set username/password for AD DS VMs')
+param VmUsername string
+@secure()
+param VmPassword string
+
 module deployPlatformSubRg './modules/createPlatformSubResources.bicep' = {
   name: 'deployPlatformRg'
   scope: subscription(platformSubscriptionId)
   params: {
     hubVnetResourceGroupName: hubVnetResourceGroupName
     Location: Location
+    dcResourceGroupName: dcResourceGroupName
   }
 }
 
@@ -62,6 +71,24 @@ module deployAvdSubRg './modules/createAvdSubResources.bicep' = {
     avdResourceGroupName: avdResourceGroupName
     Location: Location
   }
+}
+
+module deployAdds './modules/identityFramework.bicep' = {
+  name: 'AddsDeployment'
+  scope: resourceGroup(platformSubscriptionId,dcResourceGroupName)
+  params: {
+    hubVnetResourceGroupName: hubVnetResourceGroupName
+    platformSubscriptionId: platformSubscriptionId
+    Environment: Environment
+    Location: Location
+    LocationAbbr: LocationAbbr
+    VmUsername: VmUsername
+    VmPassword: VmPassword
+  }
+  dependsOn: [
+    deployPlatformSubRg
+    hubNetworkModule
+  ]
 }
 
 module hubNetworkModule './modules/hubNetworkFramework.bicep' = {

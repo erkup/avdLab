@@ -2,4 +2,3 @@ test*
 log*
 .vscode/
 /networking
-*.json

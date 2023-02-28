@@ -1,0 +1,51 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "avdSubscriptionId": {
+      "value": "ADDS-rg"
+    },
+    "dcResourceGroupName": {
+      "value": "ADDS-rg"
+    },
+    "hubVnetResourceGroupName": {
+      "value": "hub-network-rg"
+    },
+    "avdVnetResourceGroupName": {
+      "value": "avd-network-rg"
+    },
+    "avdResourceGroupName": {
+      "value": "avd-rg'"
+    },
+    "Environment": {
+      "value": "p"
+    },
+    "Location": {
+      "value": "eastus"
+    },
+    "LocationAbbr": {
+      "value": "eus"
+    },
+    "hubVnetAddrPrefix": {
+      "value": "10.0.0.0/21"
+    },
+    "avdVnetAddrPrefix": {
+      "value": "10.3.0.0/21"
+    },
+    "onPremVnetAddrPrefix": {
+      "value": "192.168.0.0/24"
+    },
+    "onPremVpnPublicIp": {
+      "value": "4.3.2.1"
+    },
+    "vpnPresharedKey": {
+      "value": ""
+    },
+    "VmUsername": {
+      "value": ""
+    },
+    "VmPassword": {
+      "value": ""
+    }
+  }
+}
